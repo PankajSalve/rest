@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
+    body { background: #f1f5f9; padding: 20px; }
+    .container { max-width: 1000px; margin: auto; }
+    .login-box { max-width: 360px; margin: 80px auto; background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 6px; }
+    button { padding: 10px; background: #0284c7; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .order-header { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 8px; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
+    .badge-Pending { background: #fef08a; color: #854d0e; }
+    .badge-Served { background: #bbf7d0; color: #166534; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    {% if show_login %}
+      <div class="login-box">
+        <h2 style="margin-bottom: 15px;">Admin Login</h2>
+        {% if login_error %}<p style="color: red;">{{ login_error }}</p>{% endif %}
+        <form method="POST">
+          <input type="text" name="username" placeholder="Username" required>
+          <input type="password" name="password" placeholder="Password" required>
+          <button style="width: 100%; margin-top: 10px;" type="submit">Log In</button>
+        </form>
+      </div>
+    {% elif show_dashboard %}
+      <div class="header">
+        <h2>Kitchen & Admin Dashboard</h2>
+        <a href="/admin/logout" style="color: #ef4444; font-weight: 600;">Log Out</a>
+      </div>
+
+      <!-- Add Dish Section -->
+      <div class="card">
+        <h3>Add Food Item</h3>
+        <form action="/admin/menu/add" method="POST" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+          <input type="text" name="name" placeholder="Dish Name" required>
+          <select name="category">
+            <option>Starters</option><option>Main Course</option><option>Breads</option><option>Rice</option><option>Beverages</option>
+          </select>
+          <input type="number" step="0.01" name="price" placeholder="Price (₹)" required>
+          <input type="text" name="image_url" placeholder="Image URL">
+          <textarea style="grid-column: span 2;" name="description" placeholder="Description"></textarea>
+          <button type="submit" style="grid-column: span 2;">Save Item</button>
+        </form>
+      </div>
+
+      <!-- Live Orders Section -->
+      <h3 style="margin: 20px 0 10px 0;">Live Table Orders (Auto-Refreshes)</h3>
+      <div id="orders-container">Loading orders...</div>
+
+      <!-- Menu Items Management -->
+      <h3 style="margin: 30px 0 10px 0;">Current Menu</h3>
+      {% for m in menu %}
+      <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <strong>{{ m['name'] }}</strong> ({{ m['category'] }}) — ₹{{ "%.2f"|format(m['price']) }}
+          <div><small>{{ m['description'] }}</small></div>
+        </div>
+        <div>
+          <a href="/admin/menu/{{ m['id'] }}/toggle" style="margin-right: 10px;">{{ 'Disable' if m['is_available'] else 'Enable' }}</a>
+          <a href="/admin/menu/{{ m['id'] }}/delete" style="color: red;">Delete</a>
+        </div>
+      </div>
+      {% endfor %}
+
+      <script>
+        async function fetchOrders() {
+          const res = await fetch("/api/admin/orders");
+          const orders = await res.json();
+          const container = document.getElementById("orders-container");
+
+          if (orders.length === 0) {
+            container.innerHTML = "<p>No orders placed yet.</p>";
+            return;
+          }
+
+          container.innerHTML = orders.map(o => {
+            const items = JSON.parse(o.items_json);
+            return `
+              <div class="card">
+                <div class="order-header">
+                  <span>Order #${o.id} — Table: ${o.table_no}</span>
+                  <span class="badge badge-${o.status}">${o.status}</span>
+                </div>
+                <p><small>${o.created_at}</small></p>
+                <ul style="margin: 10px 0 10px 20px;">
+                  ${items.map(i => `<li>${i.name} x ${i.qty} (₹${(i.price * i.qty).toFixed(2)})</li>`).join('')}
+                </ul>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <strong>Total: ₹${o.total_amount.toFixed(2)}</strong>
+                  <div>
+                    ${o.status === 'Pending' ? `<button onclick="serveOrder(${o.id})" style="background: #16a34a; margin-right: 8px;">Mark Served</button>` : ''}
+                    <a href="/admin/order/${o.id}/bill" target="_blank"><button style="background: #475569;">Print Bill (PDF)</button></a>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        async function serveOrder(id) {
+          await fetch(`/api/admin/order/${id}/serve`, { method: "POST" });
+          fetchOrders();
+        }
+
+        // Auto-refresh orders every 3 seconds seamlessly
+        fetchOrders();
+        setInterval(fetchOrders, 3000);
+      </script>
+    {% endif %}
+  </div>
+</body>
+</html>

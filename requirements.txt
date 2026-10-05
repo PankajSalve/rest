@@ -1,0 +1,5 @@
+flask
+gunicorn
+fpdf2
+qrcode
+pillow

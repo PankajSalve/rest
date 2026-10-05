@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food Menu</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
+    body { background: #f8f9fa; padding: 12px 12px 100px 12px; }
+    header { text-align: center; margin-bottom: 16px; }
+    .table-badge { display: inline-block; background: #e2e8f0; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 0.9rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex; flex-direction: column; }
+    .card img { width: 100%; height: 110px; object-fit: cover; }
+    .info { padding: 8px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+    .name { font-size: 0.95rem; font-weight: 700; margin-bottom: 2px; }
+    .price { color: #d97706; font-weight: 700; font-size: 0.95rem; }
+    .controls { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+    button.btn-qty { background: #0284c7; color: white; border: none; width: 28px; height: 28px; border-radius: 6px; font-size: 1rem; cursor: pointer; }
+    .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e2e8f0; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.05); }
+    .btn-order { background: #16a34a; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>🍽️ Gourmet Express</h2>
+    <div class="table-badge">Table: {{ table_no }}</div>
+  </header>
+
+  <div class="grid">
+    {% for item in items %}
+    <div class="card">
+      <img src="{{ item['image_url'] or 'https://images.unsplash.com/photo-1495195129352-aeb325a55b65?w=500' }}" alt="{{ item['name'] }}">
+      <div class="info">
+        <div>
+          <div class="name">{{ item['name'] }}</div>
+          <div class="price">₹{{ "%.2f"|format(item['price']) }}</div>
+        </div>
+        <div class="controls">
+          <button class="btn-qty" onclick="changeQty({{ item['id'] }}, '{{ item['name'] }}', {{ item['price'] }}, -1)">-</button>
+          <span id="qty-{{ item['id'] }}" style="font-weight: 600;">0</span>
+          <button class="btn-qty" onclick="changeQty({{ item['id'] }}, '{{ item['name'] }}', {{ item['price'] }}, 1)">+</button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="cart-bar">
+    <div>Total: <strong id="cart-total">₹0.00</strong></div>
+    <button class="btn-order" onclick="placeOrder()">Place Order</button>
+  </div>
+
+  <script>
+    const tableNo = "{{ table_no }}";
+    const cart = {};
+
+    function changeQty(id, name, price, delta) {
+      if (!cart[id]) cart[id] = { id, name, price, qty: 0 };
+      cart[id].qty += delta;
+      if (cart[id].qty <= 0) delete cart[id];
+
+      document.getElementById('qty-' + id).innerText = cart[id] ? cart[id].qty : 0;
+      updateTotal();
+    }
+
+    function updateTotal() {
+      let total = 0;
+      for (const k in cart) total += cart[k].price * cart[k].qty;
+      document.getElementById('cart-total').innerText = '₹' + total.toFixed(2);
+    }
+
+    async function placeOrder() {
+      const items = Object.values(cart);
+      if (items.length === 0) return alert("Select at least one dish!");
+
+      let total = items.reduce((sum, i) => sum + (i.price * i.qty), 0);
+      const res = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ table_no: tableNo, items: items, total: total })
+      });
+
+      const out = await res.json();
+      if (out.success) {
+        alert("Order placed successfully! Kitchen has received your ticket.");
+        location.reload();
+      }
+    }
+  </script>
+</body>
+</html>
