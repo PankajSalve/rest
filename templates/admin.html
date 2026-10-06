@@ -2,119 +2,441 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Admin Dashboard | Gourmet Express</title>
   <style>
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
-    body { background: #f1f5f9; padding: 20px; }
-    .container { max-width: 1000px; margin: auto; }
-    .login-box { max-width: 360px; margin: 80px auto; background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 6px; }
-    button { padding: 10px; background: #0284c7; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .order-header { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 8px; }
-    .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
-    .badge-Pending { background: #fef08a; color: #854d0e; }
-    .badge-Served { background: #bbf7d0; color: #166534; }
+    :root {
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text-main); padding-bottom: 60px; }
+
+    /* Top App Bar */
+    .navbar {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .brand { font-size: 1.15rem; font-weight: 700; color: var(--text-main); }
+    .btn-logout { color: var(--danger); text-decoration: none; font-weight: 600; font-size: 0.9rem; padding: 6px 12px; border-radius: 6px; border: 1px solid #fecaca; }
+
+    /* Tab Navigation */
+    .tabs-bar {
+      display: flex;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      white-space: nowrap;
+      padding: 0 8px;
+    }
+    .tab-btn {
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      border: none;
+      background: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom: 3px solid var(--primary);
+    }
+
+    /* Container */
+    .container { max-width: 1050px; margin: auto; padding: 14px; }
+
+    /* Responsive Grid for KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .kpi-label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+    .kpi-val { font-size: 1.35rem; font-weight: 700; margin-top: 4px; color: var(--text-main); }
+    .kpi-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* General Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+    }
+    .card-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+
+    /* Orders List Cards */
+    .order-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--primary);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .order-card.served { border-left-color: var(--success); }
+    .order-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .order-title { font-size: 1rem; font-weight: 700; }
+    .badge { padding: 3px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+    .badge-Pending { background: #fef3c7; color: #92400e; }
+    .badge-Served { background: #dcfce7; color: #166534; }
+
+    /* Tables */
+    .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: #f1f5f9; color: var(--text-muted); font-weight: 600; }
+
+    /* Form Inputs */
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      margin: 6px 0 12px 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      background: #fff;
+    }
+    button.btn-primary {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn-action {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      display: inline-block;
+    }
+
+    /* Login Form Card */
+    .login-container { max-width: 360px; margin: 60px auto; padding: 24px; background: #fff; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .alert-error { background: #fee2e2; border: 1px solid #f87171; color: #b91c1c; padding: 10px 12px; border-radius: 8px; font-size: 0.88rem; margin-bottom: 12px; font-weight: 500; }
+
+    @media (max-width: 600px) {
+      .form-grid-2 { grid-template-columns: 1fr !important; }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    {% if show_login %}
-      <div class="login-box">
-        <h2 style="margin-bottom: 15px;">Admin Login</h2>
-        {% if login_error %}<p style="color: red;">{{ login_error }}</p>{% endif %}
-        <form method="POST">
-          <input type="text" name="username" placeholder="Username" required>
-          <input type="password" name="password" placeholder="Password" required>
-          <button style="width: 100%; margin-top: 10px;" type="submit">Log In</button>
-        </form>
-      </div>
-    {% elif show_dashboard %}
-      <div class="header">
-        <h2>Kitchen & Admin Dashboard</h2>
-        <a href="/admin/logout" style="color: #ef4444; font-weight: 600;">Log Out</a>
-      </div>
 
-      <!-- Add Dish Section -->
-      <div class="card">
-        <h3>Add Food Item</h3>
-        <form action="/admin/menu/add" method="POST" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-          <input type="text" name="name" placeholder="Dish Name" required>
-          <select name="category">
-            <option>Starters</option><option>Main Course</option><option>Breads</option><option>Rice</option><option>Beverages</option>
-          </select>
-          <input type="number" step="0.01" name="price" placeholder="Price (₹)" required>
-          <input type="text" name="image_url" placeholder="Image URL">
-          <textarea style="grid-column: span 2;" name="description" placeholder="Description"></textarea>
-          <button type="submit" style="grid-column: span 2;">Save Item</button>
-        </form>
-      </div>
+  {% if show_login %}
+    <!-- Login Screen -->
+    <div class="login-container">
+      <h2 style="margin-bottom: 6px; text-align: center;">Owner Portal</h2>
+      <p style="color: var(--text-muted); text-align: center; font-size: 0.88rem; margin-bottom: 18px;">Enter credentials to access admin dashboard</p>
 
-      <!-- Live Orders Section -->
-      <h3 style="margin: 20px 0 10px 0;">Live Table Orders (Auto-Refreshes)</h3>
-      <div id="orders-container">Loading orders...</div>
+      {% if login_error %}
+        <div class="alert-error">⚠️ {{ login_error }}</div>
+      {% endif %}
 
-      <!-- Menu Items Management -->
-      <h3 style="margin: 30px 0 10px 0;">Current Menu</h3>
-      {% for m in menu %}
-      <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <strong>{{ m['name'] }}</strong> ({{ m['category'] }}) — ₹{{ "%.2f"|format(m['price']) }}
-          <div><small>{{ m['description'] }}</small></div>
+      <form method="POST">
+        <label style="font-size: 0.85rem; font-weight: 600;">Username</label>
+        <input type="text" name="username" placeholder="Username" required autocomplete="username">
+        
+        <label style="font-size: 0.85rem; font-weight: 600;">Password</label>
+        <input type="password" name="password" placeholder="Password" required autocomplete="current-password">
+        
+        <button type="submit" class="btn-primary" style="margin-top: 8px;">Log In</button>
+      </form>
+    </div>
+
+  {% elif show_dashboard %}
+    <!-- Admin Top App Bar -->
+    <div class="navbar">
+      <div class="brand">🍽️ RestoAdmin</div>
+      <a href="/admin/logout" class="btn-logout">Log Out</a>
+    </div>
+
+    <!-- Mobile Scrollable Tabs -->
+    <div class="tabs-bar">
+      <button class="tab-btn active" onclick="switchTab('orders', this)">📋 Live Orders</button>
+      <button class="tab-btn" onclick="switchTab('sales', this)">📊 Sales & Reports</button>
+      <button class="tab-btn" onclick="switchTab('menu', this)">🍴 Menu Items</button>
+      <button class="tab-btn" onclick="switchTab('qr', this)">🖨️ QR Generator</button>
+    </div>
+
+    <div class="container">
+      
+      <!-- TAB 1: LIVE ORDERS -->
+      <div id="tab-orders">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="font-size: 1.1rem;">Kitchen Order Tickets</h3>
+          <span style="font-size: 0.8rem; color: var(--success); font-weight: 600;" id="sync-timer">🟢 Auto-Sync Active</span>
         </div>
-        <div>
-          <a href="/admin/menu/{{ m['id'] }}/toggle" style="margin-right: 10px;">{{ 'Disable' if m['is_available'] else 'Enable' }}</a>
-          <a href="/admin/menu/{{ m['id'] }}/delete" style="color: red;">Delete</a>
+        <div id="orders-container">Loading live orders...</div>
+      </div>
+
+      <!-- TAB 2: SALES & REPORTS -->
+      <div id="tab-sales" style="display: none;">
+        <!-- KPI Analytics Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="border-top: 3px solid var(--primary);">
+            <div class="kpi-label">Today's Sales</div>
+            <div class="kpi-val">₹{{ "%.2f"|format(stats.today_rev) }}</div>
+            <div class="kpi-sub">{{ stats.today_orders }} orders placed</div>
+          </div>
+          <div class="kpi-card" style="border-top: 3px solid #64748b;">
+            <div class="kpi-label">Yesterday</div>
+            <div class="kpi-val">₹{{ "%.2f"|format(stats.yesterday_rev) }}</div>
+            <div class="kpi-sub">{{ stats.yesterday_orders }} orders</div>
+          </div>
+          <div class="kpi-card" style="border-top: 3px solid var(--success);">
+            <div class="kpi-label">This Month</div>
+            <div class="kpi-val">₹{{ "%.2f"|format(stats.month_rev) }}</div>
+            <div class="kpi-sub">{{ stats.month_orders }} orders</div>
+          </div>
+          <div class="kpi-card" style="border-top: 3px solid #d97706;">
+            <div class="kpi-label">Lifetime Sales</div>
+            <div class="kpi-val">₹{{ "%.2f"|format(stats.total_rev) }}</div>
+            <div class="kpi-sub">{{ stats.total_orders }} total orders</div>
+          </div>
+        </div>
+
+        <!-- Export Action -->
+        <div style="margin-bottom: 14px; text-align: right;">
+          <a href="/admin/export/csv" class="btn-action" style="background: #334155; color: white;">📥 Export All Sales (CSV)</a>
+        </div>
+
+        <!-- Top Selling Dishes Card -->
+        <div class="card">
+          <div class="card-title">🔥 Top Selling Dishes</div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Dish Name</th>
+                  <th style="text-align: right;">Units Sold</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for dish, count in stats.top_dishes %}
+                <tr>
+                  <td><strong>{{ dish }}</strong></td>
+                  <td style="text-align: right; font-weight: 700; color: var(--primary);">{{ count }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" style="text-align:center;">No items recorded yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Daily Sales Breakdown Table -->
+        <div class="card">
+          <div class="card-title">📅 Daily Breakdown (Last 30 Days)</div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Orders</th>
+                  <th style="text-align: right;">Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in stats.daily_stats %}
+                <tr>
+                  <td>{{ row.order_date }}</td>
+                  <td>{{ row.count }}</td>
+                  <td style="text-align: right; font-weight: 700;">₹{{ "%.2f"|format(row.revenue) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" style="text-align:center;">No records available.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-      {% endfor %}
 
-      <script>
-        async function fetchOrders() {
+      <!-- TAB 3: MENU MANAGEMENT -->
+      <div id="tab-menu" style="display: none;">
+        <div class="card">
+          <div class="card-title">➕ Add New Dish</div>
+          <form action="/admin/menu/add" method="POST">
+            <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="font-size: 0.85rem; font-weight: 600;">Dish Name</label>
+                <input type="text" name="name" placeholder="e.g. Paneer Tikka" required>
+              </div>
+              <div>
+                <label style="font-size: 0.85rem; font-weight: 600;">Category</label>
+                <select name="category">
+                  <option>Starters</option>
+                  <option>Main Course</option>
+                  <option>Breads</option>
+                  <option>Rice</option>
+                  <option>Beverages</option>
+                  <option>Dessert</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size: 0.85rem; font-weight: 600;">Price (INR)</label>
+                <input type="number" step="0.01" name="price" placeholder="250.00" required>
+              </div>
+              <div>
+                <label style="font-size: 0.85rem; font-weight: 600;">Image Web URL</label>
+                <input type="text" name="image_url" placeholder="https://images.unsplash.com/...">
+              </div>
+            </div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Description</label>
+            <textarea name="description" placeholder="Ingredients and details..." rows="2"></textarea>
+            <button type="submit" class="btn-primary">Save to Menu</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Existing Menu Items ({{ menu|length }})</div>
+          {% for m in menu %}
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding: 12px 0;">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <img src="{{ m.image_url or 'https://images.unsplash.com/photo-1495195129352-aeb325a55b65?w=500' }}" style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover;">
+              <div>
+                <div style="font-weight: 700;">{{ m.name }}</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">{{ m.category }} • ₹{{ "%.2f"|format(m.price) }}</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <a href="/admin/menu/{{ m.id }}/toggle" class="btn-action" style="background: {{ '#fef08a' if m.is_available else '#e2e8f0' }}; color: {{ '#854d0e' if m.is_available else '#475569' }};">
+                {{ 'In Stock' if m.is_available else 'Out of Stock' }}
+              </a>
+              <a href="/admin/menu/{{ m.id }}/delete" class="btn-action" style="background: #fee2e2; color: #b91c1c;" onclick="return confirm('Delete this dish?')">🗑️</a>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- TAB 4: QR CODE GENERATOR -->
+      <div id="tab-qr" style="display: none;">
+        <div class="card">
+          <div class="card-title">Generate Table QR Code</div>
+          <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 12px;">Type a table identifier (e.g., T1, T2, Table-05) and get an instantly printable QR code for that table.</p>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="qr-table-input" value="T1" style="max-width: 140px; margin: 0;">
+            <button class="btn-primary" style="width: auto; padding: 0 18px;" onclick="loadQR()">Generate QR</button>
+          </div>
+          <div style="margin-top: 20px; text-align: center;">
+            <img id="qr-preview-img" src="/admin/qr/T1" style="width: 220px; height: 220px; border: 1px solid var(--border); border-radius: 10px; padding: 8px; background: white;">
+            <div style="margin-top: 10px;">
+              <a id="qr-download-link" href="/admin/qr/T1" download="qr_T1.png" class="btn-action" style="background: var(--primary); color: white;">Download QR Code</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Dynamic JavaScript for Tabs and Auto-Refresh Orders -->
+    <script>
+      function switchTab(tabName, el) {
+        document.querySelectorAll('.tabs-bar .tab-btn').forEach(btn => btn.classList.remove('active'));
+        el.classList.add('active');
+
+        document.getElementById('tab-orders').style.display = tabName === 'orders' ? 'block' : 'none';
+        document.getElementById('tab-sales').style.display = tabName === 'sales' ? 'block' : 'none';
+        document.getElementById('tab-menu').style.display = tabName === 'menu' ? 'block' : 'none';
+        document.getElementById('tab-qr').style.display = tabName === 'qr' ? 'block' : 'none';
+      }
+
+      function loadQR() {
+        const tVal = document.getElementById('qr-table-input').value.trim() || 'T1';
+        const img = document.getElementById('qr-preview-img');
+        const link = document.getElementById('qr-download-link');
+        const url = '/admin/qr/' + encodeURIComponent(tVal);
+        img.src = url;
+        link.href = url;
+        link.download = 'qr_' + tVal + '.png';
+      }
+
+      async function fetchLiveOrders() {
+        try {
           const res = await fetch("/api/admin/orders");
           const orders = await res.json();
           const container = document.getElementById("orders-container");
 
-          if (orders.length === 0) {
-            container.innerHTML = "<p>No orders placed yet.</p>";
+          if (!orders || orders.length === 0) {
+            container.innerHTML = '<div class="card" style="text-align: center; color: var(--text-muted);">No orders placed yet.</div>';
             return;
           }
 
           container.innerHTML = orders.map(o => {
-            const items = JSON.parse(o.items_json);
+            let items = [];
+            try { items = JSON.parse(o.items_json); } catch(e){}
+            const isServed = o.status === 'Served';
+
             return `
-              <div class="card">
-                <div class="order-header">
-                  <span>Order #${o.id} — Table: ${o.table_no}</span>
+              <div class="order-card ${isServed ? 'served' : ''}">
+                <div class="order-meta">
+                  <span class="order-title">Table: ${o.table_no} (Order #${o.id})</span>
                   <span class="badge badge-${o.status}">${o.status}</span>
                 </div>
-                <p><small>${o.created_at}</small></p>
-                <ul style="margin: 10px 0 10px 20px;">
-                  ${items.map(i => `<li>${i.name} x ${i.qty} (₹${(i.price * i.qty).toFixed(2)})</li>`).join('')}
+                <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px;">Placed: ${o.created_at}</div>
+                <ul style="margin-left: 20px; font-size: 0.9rem; margin-bottom: 10px;">
+                  ${items.map(it => `<li><strong>${it.name}</strong> × ${it.qty} (₹${(it.price * it.qty).toFixed(2)})</li>`).join('')}
                 </ul>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <strong>Total: ₹${o.total_amount.toFixed(2)}</strong>
-                  <div>
-                    ${o.status === 'Pending' ? `<button onclick="serveOrder(${o.id})" style="background: #16a34a; margin-right: 8px;">Mark Served</button>` : ''}
-                    <a href="/admin/order/${o.id}/bill" target="_blank"><button style="background: #475569;">Print Bill (PDF)</button></a>
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border); padding-top: 10px;">
+                  <span style="font-weight: 700; font-size: 1.05rem;">Total: ₹${o.total_amount.toFixed(2)}</span>
+                  <div style="display: flex; gap: 8px;">
+                    ${!isServed ? `<button onclick="markServed(${o.id})" class="btn-action" style="background: var(--success); color: white;">Mark Served</button>` : ''}
+                    <a href="/admin/order/${o.id}/bill" target="_blank" class="btn-action" style="background: #475569; color: white;">Print PDF Bill</a>
                   </div>
                 </div>
               </div>
             `;
           }).join('');
+        } catch(err) {
+          console.error("Order polling error:", err);
         }
+      }
 
-        async function serveOrder(id) {
-          await fetch(`/api/admin/order/${id}/serve`, { method: "POST" });
-          fetchOrders();
-        }
+      async function markServed(id) {
+        await fetch(`/api/admin/order/${id}/serve`, { method: "POST" });
+        fetchLiveOrders();
+      }
 
-        // Auto-refresh orders every 3 seconds seamlessly
-        fetchOrders();
-        setInterval(fetchOrders, 3000);
-      </script>
-    {% endif %}
-  </div>
+      // Initial call and periodic poll every 3 seconds
+      fetchLiveOrders();
+      setInterval(fetchLiveOrders, 3000);
+    </script>
+  {% endif %}
+
 </body>
 </html>
