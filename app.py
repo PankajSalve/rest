@@ -2,7 +2,8 @@ import os
 import sqlite3
 import json
 import io
-from datetime import datetime
+import csv
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file, Response
 import qrcode
 from fpdf import FPDF
@@ -94,13 +95,13 @@ def place_order():
 @app.route("/admin", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
-        u = request.form.get("username")
-        p = request.form.get("password")
+        u = request.form.get("username", "").strip()
+        p = request.form.get("password", "").strip()
         if u == ADMIN_USER and p == ADMIN_PASS:
             session["admin"] = True
             return redirect(url_for("admin_dashboard"))
-        return render_template("admin.html", login_error="Invalid username or password")
-    
+        return render_template("admin.html", show_login=True, login_error="Invalid username or password. Please try again.")
+
     if session.get("admin"):
         return redirect(url_for("admin_dashboard"))
     return render_template("admin.html", show_login=True)
@@ -109,10 +110,73 @@ def admin_login():
 def admin_dashboard():
     if not session.get("admin"):
         return redirect(url_for("admin_login"))
+
     conn = get_db()
     menu = conn.execute("SELECT * FROM menu ORDER BY id DESC").fetchall()
+    
+    # Financial Analytics Calculation
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    month_str = datetime.now().strftime("%Y-%m")
+
+    # Today's Sales
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*), COALESCE(SUM(total_amount), 0) FROM orders WHERE created_at LIKE ?", (f"{today_str}%",))
+    today_orders, today_rev = cur.fetchone()
+
+    # Yesterday's Sales
+    cur.execute("SELECT COUNT(*), COALESCE(SUM(total_amount), 0) FROM orders WHERE created_at LIKE ?", (f"{yesterday_str}%",))
+    yesterday_orders, yesterday_rev = cur.fetchone()
+
+    # This Month's Sales
+    cur.execute("SELECT COUNT(*), COALESCE(SUM(total_amount), 0) FROM orders WHERE created_at LIKE ?", (f"{month_str}%",))
+    month_orders, month_rev = cur.fetchone()
+
+    # Lifetime Revenue
+    cur.execute("SELECT COUNT(*), COALESCE(SUM(total_amount), 0) FROM orders")
+    total_orders, total_rev = cur.fetchone()
+
+    # Daily Grouped Breakdown (Last 30 Days)
+    cur.execute("""
+        SELECT substr(created_at, 1, 10) as order_date, COUNT(*) as count, SUM(total_amount) as revenue
+        FROM orders
+        GROUP BY order_date
+        ORDER BY order_date DESC
+        LIMIT 30
+    """)
+    daily_stats = cur.fetchall()
+
+    # Top Selling Dishes Calculation
+    cur.execute("SELECT items_json FROM orders")
+    all_raw_orders = cur.fetchall()
+    item_counts = {}
+    for row in all_raw_orders:
+        try:
+            itms = json.loads(row["items_json"])
+            for itm in itms:
+                name = itm.get("name", "Unknown")
+                qty = itm.get("qty", 0)
+                item_counts[name] = item_counts.get(name, 0) + qty
+        except Exception:
+            pass
+
+    top_dishes = sorted(item_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+
+    stats = {
+        "today_rev": today_rev,
+        "today_orders": today_orders,
+        "yesterday_rev": yesterday_rev,
+        "yesterday_orders": yesterday_orders,
+        "month_rev": month_rev,
+        "month_orders": month_orders,
+        "total_rev": total_rev,
+        "total_orders": total_orders,
+        "daily_stats": daily_stats,
+        "top_dishes": top_dishes
+    }
+
     conn.close()
-    return render_template("admin.html", show_dashboard=True, menu=menu)
+    return render_template("admin.html", show_dashboard=True, menu=menu, stats=stats)
 
 @app.route("/admin/logout")
 def admin_logout():
@@ -175,7 +239,27 @@ def delete_menu_item(item_id):
     conn.close()
     return redirect(url_for("admin_dashboard"))
 
-# 80mm PDF Bill Generation
+@app.route("/admin/export/csv")
+def export_csv():
+    if not session.get("admin"):
+        return redirect(url_for("admin_login"))
+    conn = get_db()
+    orders = conn.execute("SELECT id, table_no, total_amount, status, created_at, items_json FROM orders ORDER BY id DESC").fetchall()
+    conn.close()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Order ID", "Table", "Total (INR)", "Status", "Timestamp", "Items"])
+
+    for o in orders:
+        writer.writerow([o["id"], o["table_no"], o["total_amount"], o["status"], o["created_at"], o["items_json"]])
+
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment;filename=sales_report_{datetime.now().strftime('%Y%m%d')}.csv"}
+    )
+
 @app.route("/admin/order/<int:order_id>/bill")
 def print_bill(order_id):
     if not session.get("admin"):
@@ -192,6 +276,8 @@ def print_bill(order_id):
     pdf = FPDF(unit="mm", format=(72, 160))
     pdf.set_margins(3, 4, 3)
     pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=4)
+
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 5, "College Canteen", ln=True, align="C")
     pdf.set_font("Helvetica", "", 8)
@@ -226,7 +312,6 @@ def print_bill(order_id):
     buf = io.BytesIO(bytes(pdf.output()))
     return send_file(buf, download_name=f"bill_{order_id}.pdf", mimetype="application/pdf")
 
-# QR Generator
 @app.route("/admin/qr/<table_no>")
 def table_qr(table_no):
     base_url = request.host_url.rstrip("/")
