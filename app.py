@@ -193,7 +193,7 @@ def print_bill(order_id):
     pdf.set_margins(3, 4, 3)
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 5, "GOURMET EXPRESS", ln=True, align="C")
+    pdf.cell(0, 5, "College Canteen", ln=True, align="C")
     pdf.set_font("Helvetica", "", 8)
     pdf.cell(0, 4, f"Table: {order['table_no']} | Order #{order['id']}", ln=True, align="C")
     pdf.cell(0, 4, f"{order['created_at']}", ln=True, align="C")
